@@ -1,0 +1,319 @@
+package kijiji;
+
+
+import java.awt.AWTException;
+import java.awt.Robot;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+
+
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Scanner;
+
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.openqa.selenium.By;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.Point;
+import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebElement;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.FluentWait;
+import org.openqa.selenium.support.ui.Select;
+import org.openqa.selenium.support.ui.Wait;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.JavascriptExecutor;
+
+
+public class kijiji {
+
+	public static void main(String[] args) throws IOException {
+		String directory = "";
+
+		 
+
+		
+		try{        
+			
+		boolean isFirst = true;
+		
+		//FileInputStream file = new FileInputStream(new File("in.xlsx"));
+        //System.out.println(new File("in.xlsx").getAbsoluteFile());
+		FileInputStream file = new FileInputStream(new File("D:\\My stuff\\Dropbox\\kijiji\\kijiji.xlsx"));
+        XSSFWorkbook workbook = new XSSFWorkbook(file);
+
+        
+        XSSFSheet sheet = workbook.getSheetAt(0);
+
+        ArrayList<String> list = new ArrayList<String>();
+        Iterator<Row> rowIterator = sheet.iterator();
+        
+        ArrayList imagesList = new ArrayList();
+		WebDriver driver = new FirefoxDriver();
+            while (rowIterator.hasNext())
+            {
+            	
+            	
+            	
+                Row row = rowIterator.next();
+                Iterator<Cell> cellIterator = row.cellIterator();
+                list.clear();
+                imagesList.clear();
+
+        		System.setProperty("webdriver.chrome.driver","chromedriver.exe");
+        		
+                
+                while (cellIterator.hasNext())
+                {
+                     Cell cell = cellIterator.next();
+                    switch (cell.getCellType())
+                    {
+                        case Cell.CELL_TYPE_NUMERIC:
+                        	list.add(String.valueOf(Integer.toString((int)cell.getNumericCellValue())));
+                            break;
+
+                        case Cell.CELL_TYPE_STRING:
+                        	list.add(cell.getStringCellValue());
+                                   break;
+                    }
+                    
+                    
+                    if (list.size()>9) {
+                    	//System.out.println(cell.getStringCellValue());
+                		imagesList.add(cell.getStringCellValue());                    	
+                    }
+                    
+                    
+                }
+                
+                //First row is for headings
+                if (isFirst){
+                	list.clear();
+                	isFirst = false;
+            		continue;
+            	}
+                
+        		System.out.println("Posting: " + list.get(5) + " - ");
+      			post(driver, list.get(0), list.get(1), list.get(2), list.get(3), list.get(4), list.get(5), list.get(6), list.get(7), list.get(8), imagesList);
+        
+            }
+            
+            file.close();
+            driver.close();
+
+            }
+		catch (Exception e){
+			System.out.println(e);
+		}           
+	}
+	
+	public static void post(WebDriver driver, String user, String pass,String price, String dropdown1, String dropdown2, String title, String desc, String wanted, String postlink, List imagesList){
+				
+		
+		try{
+		//Select city
+		driver.get("http://www.kijiji.ca/p-select-category.html");
+		driver.manage().window().maximize();
+		driver.findElement(By.xpath("//*[@data-loc-id='9004']")).click();
+		driver.findElement(By.xpath("//*[@data-loc-id='1700209']")).click();
+		driver.findElement(By.xpath("//*[@data-loc-id='1700212']")).click();
+		driver.findElement(By.id("LocUpdate")).click();
+		
+		
+			Thread.sleep(1000);
+		}
+		catch (Exception e){
+			//System.out.println(e);
+		}
+		
+		
+		//Login to Kijiji
+		driver.findElement(By.id("SignInLink")).click();
+		driver.findElement(By.id("LoginEmailOrNickname")).sendKeys(user);
+		driver.findElement(By.id("login-password")).sendKeys(pass);
+		driver.findElement(By.id("SignInButton")).click();
+		
+		try{
+			Thread.sleep(4000);
+		}
+		catch (Exception e){
+			System.out.println(e);
+		}
+		
+		//Delete all ads
+		driver.get("https://www.kijiji.ca/m-my-ads.html");
+		sleep(1200);
+		int idx = driver.getPageSource().indexOf("id=\"delete-ad-");
+		while (idx!=-1){
+			String listNumber =(driver.getPageSource().substring(idx+14, idx+24));
+			driver.findElement(By.id("delete-ad-" + listNumber)).click();
+			driver.findElement(By.xpath("//*[@value = 'FOUND_BUYER_ON_KIJIJI']")).click();
+			driver.findElement(By.id("DeleteSurveyOK")).click();
+			sleep(500);
+			idx = driver.getPageSource().indexOf("id=\"delete-ad-");
+		}
+		
+		
+		
+		//Pick the category the ad is located in
+		driver.get(postlink);
+		
+		//If wanted
+		if (wanted.toLowerCase().contains("want") || wanted.toLowerCase().contains("y")){
+			driver.findElement(By.id("adType2")).click();
+		}	
+		
+		//Select price
+		if (price.contains("c")){
+			driver.findElement(By.id("priceType3")).click();
+		}else{
+		driver.findElement(By.id("priceAmount")).sendKeys(price);
+		};
+		
+		
+		
+		
+		//Select laptop brand, dropdown1.
+		
+		if (dropdown1.contains(":")){
+		
+		String dropdown1id = dropdown1.split(":")[0];
+		String dropdown1value = dropdown1.split(":")[1];
+		
+		if (dropdown1id.equals("laptopbrand_s")){
+			dropdown1value =  "laptop"+dropdown1value.toLowerCase();
+		}
+		
+		WebElement dropdown1element = driver.findElement(By.id(dropdown1id));
+		Select dropdown1select = new Select(dropdown1element);
+		dropdown1select.selectByValue(dropdown1value);
+		}
+		
+		if (dropdown2.contains(":")){
+		
+		//Select Screen size, dropdown2
+		String dropdown2id = dropdown2.split(":")[0];
+		String dropdown2value = dropdown2.split(":")[1].toLowerCase();
+		
+		if (dropdown2id.equals("laptopscreensize_s")){
+			dropdown2value = "laptop"+  (dropdown2value.equals("14")? "under" : "") +dropdown2value +"inch"+  (dropdown2value.equals("17")?"andabove":"");
+		}
+		
+		//System.out.println(dropdown2value);
+		
+		WebElement dropdown2element = driver.findElement(By.id(dropdown2id));
+		Select dropdown2select= new Select (dropdown2element);
+		
+		
+		dropdown2select.selectByValue(dropdown2value);
+		}
+		//For sale by owner
+		driver.findElement(By.id("forsaleby_s")).click();
+		
+		//Ad Title
+		driver.findElement(By.id("postad-title")).sendKeys(title);
+		
+		//AD description
+		driver.findElement(By.id("pstad-descrptn")).sendKeys(desc);
+
+		//City of AD
+		driver.findElement(By.id("pstad-map-address")).sendKeys("Waterloo");
+		
+		
+		
+		
+		if ( ! imagesList.isEmpty())
+			//Upload Photos
+			driver.findElement(By.id("ImageUploadButton")).click();
+			try{
+			driver = uploadImages(imagesList, driver, (dropdown1.contains(":")? 0 : 1) + (dropdown2.contains(":")? 0 : 1));
+			}
+		catch (Exception e){}
+		//System.out.println("end");
+				
+		//Submit form
+		driver.findElement(By.className("post-ad-button")).click();
+		sleep(10000);
+		driver.get("kijiji.ca//m-logout.html");
+		sleep(2000);
+		
+		//Close 
+		//driver.close();
+		
+	}
+
+private static void sleep(int miliseconds) {
+	try {
+		Thread.sleep(miliseconds);
+	} catch (Exception e) {
+	}
+	
+}
+
+public static WebDriver uploadImages(List list, WebDriver driver, int periods) throws Exception {
+
+
+	
+	
+	
+	Robot robot;
+	robot = new Robot();
+
+	
+
+	Iterator it = list.iterator();
+	String uploadString = "";	
+	while (it.hasNext()) {
+		uploadString = uploadString + "\""+ it.next()+ "\" ";
+		//System.out.println("File. " + fileName);
+	}
+	System.out.println(uploadString);
+
+	//Here the filename will be copied to the clipboard in order to paste it in the select file window.
+	
+	StringSelection stringSelection = new StringSelection(uploadString);	
+	Toolkit.getDefaultToolkit().getSystemClipboard().setContents(stringSelection, null);
+	sleep(1000);
+	
+	//Find the button and click on the button
+	Point point = driver.findElement(By.id("ImageUploadButton")).getLocation();		
+	if (periods==2){
+		robot.mouseMove(point.x + 50, point.y+80);	
+	}else{
+		robot.mouseMove(point.x + 50, point.y - 870 + periods * 40);
+	}
+	robot.mousePress(InputEvent.BUTTON1_MASK);
+	robot.mouseRelease(InputEvent.BUTTON1_MASK);
+	sleep(800);
+
+	// CTRL+V 
+	// Here the filename with path will be pasted
+	robot.keyPress(KeyEvent.VK_CONTROL);
+	robot.keyPress(KeyEvent.VK_V);
+	sleep(500);
+	robot.keyRelease(KeyEvent.VK_V);
+	robot.keyRelease(KeyEvent.VK_CONTROL);
+	robot.keyPress(KeyEvent.VK_ENTER);
+	sleep(500);
+	robot.keyRelease(KeyEvent.VK_ENTER);
+
+	//System.out.println(important);
+	sleep(list.size()*2000);
+	
+	return driver;
+}
+}
